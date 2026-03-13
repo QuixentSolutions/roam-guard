@@ -12,7 +12,10 @@
       "bundleIdentifier": "com.yourname.roamguard",
       "infoPlist": {
         "NSContactsUsageDescription": "Used to optionally skip auto-reply to saved contacts.",
-        "UIBackgroundModes": ["fetch", "remote-notification"]
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -25,13 +28,25 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_PHONE_CALL",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.WAKE_LOCK"
+        "android.permission.WAKE_LOCK",
+        "android.permission.WRITE_CONTACTS"
       ]
     },
     "plugins": [
       "expo-router",
       "expo-contacts",
-      ["expo-notifications", { "color": "#639922" }]
-    ]
+      [
+        "expo-notifications",
+        {
+          "color": "#639922"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "096cdbf3-6728-446a-a0da-68df18b3986a"
+      }
+    }
   }
 }
