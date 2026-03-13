@@ -1,12 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet,
-  TouchableOpacity, Alert, Switch, Platform,
-  NativeModules, StatusBar, Image,
+  TouchableOpacity, Alert, Switch, Platform, Image,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, Radius } from '../src/constants/theme';
+import { Colors, Radius, Shadow } from '../src/constants/theme';
 import { loadSettings, saveSetting, TriggerMode } from '../src/services/storage';
 
 // ─── Trigger mode options ─────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ const TRIGGER_MODES: {
     id:    'roaming_ring',
     icon:  '✈️',
     title: 'Roaming — every call',
-    desc:  'SMS sent the moment your phone rings abroad, whether you answer or not. Caller is notified immediately.',
+    desc:  'SMS sent the moment your phone rings abroad, whether you answer or not.',
     tag:   'Most useful abroad',
     tagColor: Colors.green800,
     tagBg:    Colors.green50,
@@ -44,7 +44,7 @@ const TRIGGER_MODES: {
     id:    'both',
     icon:  '🌍',
     title: 'Both — roaming + no coverage',
-    desc:  'SMS fires on every roaming call, and on missed calls when out of coverage. Best overall protection.',
+    desc:  'SMS fires on every roaming call, and on missed calls when out of coverage.',
     tag:   'Recommended',
     tagColor: Colors.blue600,
     tagBg:    Colors.blue50,
@@ -76,8 +76,9 @@ export default function SettingsScreen() {
   const [triggerMode,     setTriggerMode]     = useState<TriggerMode>('both');
   const [skipContacts,    setSkipContacts]    = useState(false);
   const [logReplies,      setLogReplies]      = useState(true);
-  const [twoFactorApiKey, setTwoFactorApiKey] = useState('');
-  const [apiKeySaved,     setApiKeySaved]     = useState(false);
+  const [twoFactorApiKey,     setTwoFactorApiKey]     = useState('');
+  const [twoFactorTemplateId, setTwoFactorTemplateId] = useState('');
+  const [apiKeySaved,         setApiKeySaved]         = useState(false);
 
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -88,6 +89,7 @@ export default function SettingsScreen() {
       setSkipContacts(s.skipContacts);
       setLogReplies(s.logReplies);
       setTwoFactorApiKey(s.twoFactorApiKey ?? '');
+      setTwoFactorTemplateId(s.twoFactorTemplateId ?? '');
       setApiKeySaved(true);
     })();
   }, []));
@@ -98,8 +100,6 @@ export default function SettingsScreen() {
       return;
     }
     await saveSetting('message', draft.trim());
-    // Sync to native module if available
-    NativeModules.RoamGuardModule?.saveMessage?.(draft.trim());
     setSaved(draft.trim());
     Alert.alert('Saved ✓', 'Your auto-reply message has been updated.');
   };
@@ -107,7 +107,6 @@ export default function SettingsScreen() {
   const handleMode = async (id: TriggerMode) => {
     setTriggerMode(id);
     await saveSetting('triggerMode', id);
-    NativeModules.RoamGuardModule?.setTriggerMode?.(id);
   };
 
   const handleSkip = async (val: boolean) => {
@@ -121,7 +120,10 @@ export default function SettingsScreen() {
   };
 
   const handleSaveApiKey = async () => {
-    await saveSetting('twoFactorApiKey', twoFactorApiKey.trim());
+    await Promise.all([
+      saveSetting('twoFactorApiKey', twoFactorApiKey.trim()),
+      saveSetting('twoFactorTemplateId', twoFactorTemplateId.trim()),
+    ]);
     setApiKeySaved(true);
     Alert.alert('Saved ✓', twoFactorApiKey.trim() ? 'SMS will be sent via 2factor.in.' : 'API key cleared. Using device SMS.');
   };
@@ -131,16 +133,19 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <StatusBar style="dark" backgroundColor={Colors.bg} />
+      <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
+        {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>Customise your auto-reply</Text>
+          <Image source={require('../assets/logo.png')} style={styles.logo} resizeMode="cover" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title}>Settings</Text>
+            <Text style={styles.subtitle}>Customise your auto-reply</Text>
+          </View>
         </View>
 
-        {/* ── Google Ad Banner (top) ──────────────────────────────────────── */}
+        {/* ── Ad Banner ──────────────────────────────────────────────────── */}
         <View style={styles.adBanner}>
           <Text style={styles.adLabel}>Advertisement</Text>
         </View>
@@ -159,19 +164,19 @@ export default function SettingsScreen() {
                   selected && styles.modeRowSelected,
                 ]}
                 onPress={() => handleMode(mode.id)}
-                activeOpacity={0.65}
+                activeOpacity={0.7}
               >
                 {/* Radio */}
                 <View style={[styles.radio, selected && styles.radioOn]}>
                   {selected && <View style={styles.radioDot} />}
                 </View>
 
-                {/* Icon */}
+                {/* Icon bubble */}
                 <View style={[styles.modeIcon, selected && styles.modeIconOn]}>
-                  <Text style={{ fontSize: 18 }}>{mode.icon}</Text>
+                  <Text style={{ fontSize: 17 }}>{mode.icon}</Text>
                 </View>
 
-                {/* Content */}
+                {/* Text */}
                 <View style={{ flex: 1 }}>
                   <View style={styles.modeTitleRow}>
                     <Text style={[styles.modeTitle, selected && styles.modeTitleOn]}>
@@ -193,30 +198,31 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Message editor ─────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Your message</Text>
+        <Text style={styles.sectionLabel}>Auto-reply message</Text>
         <View style={styles.card}>
           <TextInput
             style={styles.editor}
             value={draft}
             onChangeText={setDraft}
             multiline
-            placeholder="Type your auto-reply message here..."
+            placeholder="Type your auto-reply message here…"
             placeholderTextColor={Colors.text3}
             textAlignVertical="top"
             maxLength={320}
           />
           <View style={styles.editorBar}>
             <Text style={[styles.charCount, charCount > 280 && styles.charWarn]}>
-              {charCount}/320{charCount > 160 ? ' · 2 SMS parts' : ' · 1 SMS'}
+              {charCount}/320 · {charCount > 160 ? '2 SMS parts' : '1 SMS'}
             </Text>
-            {isDirty && (
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            {isDirty ? (
+              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
                 <Text style={styles.saveBtnText}>Save</Text>
               </TouchableOpacity>
+            ) : (
+              <Text style={styles.savedBadge}>✓ Saved</Text>
             )}
           </View>
         </View>
-        {!isDirty && <Text style={styles.savedNote}>✓ Message saved</Text>}
 
         {/* ── Presets ────────────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Quick presets</Text>
@@ -226,14 +232,18 @@ export default function SettingsScreen() {
               key={i}
               style={[styles.presetRow, i < PRESETS.length - 1 && styles.rowDivider]}
               onPress={() => setDraft(p.text)}
-              activeOpacity={0.65}
+              activeOpacity={0.7}
             >
-              <View style={styles.presetIcon}><Text style={{ fontSize: 17 }}>{p.icon}</Text></View>
+              <View style={styles.presetIcon}>
+                <Text style={{ fontSize: 17 }}>{p.icon}</Text>
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.presetLabel}>{p.label}</Text>
                 <Text style={styles.presetText} numberOfLines={1}>{p.text}</Text>
               </View>
-              <Text style={styles.useBtn}>Use</Text>
+              <View style={styles.useChip}>
+                <Text style={styles.useChipText}>Use</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -250,7 +260,7 @@ export default function SettingsScreen() {
               value={skipContacts}
               onValueChange={handleSkip}
               trackColor={{ false: Colors.border2, true: Colors.green200 }}
-              thumbColor={skipContacts ? Colors.green600 : '#f4f4f4'}
+              thumbColor={skipContacts ? Colors.green600 : '#fff'}
               ios_backgroundColor={Colors.border2}
             />
           </View>
@@ -263,23 +273,28 @@ export default function SettingsScreen() {
               value={logReplies}
               onValueChange={handleLog}
               trackColor={{ false: Colors.border2, true: Colors.green200 }}
-              thumbColor={logReplies ? Colors.green600 : '#f4f4f4'}
+              thumbColor={logReplies ? Colors.green600 : '#fff'}
               ios_backgroundColor={Colors.border2}
             />
           </View>
         </View>
 
-        {/* ── 2factor.in API Key ─────────────────────────────────────────── */}
+        {/* ── SMS Provider ───────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>SMS Provider</Text>
         <View style={styles.card}>
-          <View style={styles.apiKeyRow}>
-            <View style={styles.apiKeyIconWrap}>
+          <View style={styles.providerHeader}>
+            <View style={styles.providerIconWrap}>
               <Text style={{ fontSize: 18 }}>📡</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.apiKeyTitle}>2factor.in API Key</Text>
-              <Text style={styles.apiKeySub}>Leave empty to use device SMS</Text>
+              <Text style={styles.providerTitle}>2factor.in API Key</Text>
+              <Text style={styles.providerSub}>Leave empty to use device SMS</Text>
             </View>
+            {apiKeySaved && twoFactorApiKey.trim() !== '' && (
+              <View style={styles.activeBadge}>
+                <Text style={styles.activeBadgeText}>Active</Text>
+              </View>
+            )}
           </View>
           <View style={styles.apiKeyInputRow}>
             <TextInput
@@ -292,23 +307,31 @@ export default function SettingsScreen() {
               autoCorrect={false}
               secureTextEntry
             />
+          </View>
+          <View style={[styles.apiKeyInputRow, styles.rowDivider]}>
+            <TextInput
+              style={styles.apiKeyInput}
+              value={twoFactorTemplateId}
+              onChangeText={(v) => { setTwoFactorTemplateId(v); setApiKeySaved(false); }}
+              placeholder="Template ID (optional)"
+              placeholderTextColor={Colors.text3}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
             {!apiKeySaved && (
-              <TouchableOpacity style={styles.apiKeySaveBtn} onPress={handleSaveApiKey}>
+              <TouchableOpacity style={styles.apiKeySaveBtn} onPress={handleSaveApiKey} activeOpacity={0.8}>
                 <Text style={styles.apiKeySaveBtnText}>Save</Text>
               </TouchableOpacity>
             )}
           </View>
-          {apiKeySaved && twoFactorApiKey.trim() !== '' && (
-            <Text style={styles.apiKeyActive}>✓ Active — SMS via 2factor.in</Text>
-          )}
         </View>
 
-        {/* ── Google Ad Banner (bottom) ─────────────────────────────────── */}
+        {/* ── Ad Banner (bottom) ─────────────────────────────────────────── */}
         <View style={styles.adBanner}>
           <Text style={styles.adLabel}>Advertisement</Text>
         </View>
 
-        {/* iOS note */}
+        {/* ── iOS note ───────────────────────────────────────────────────── */}
         {Platform.OS === 'ios' && (
           <View style={styles.iosNote}>
             <Text style={styles.iosTitle}>⚠️  iOS limitation</Text>
@@ -326,78 +349,154 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg },
   root:    { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 48 },
 
-  header:   { marginBottom: 20 },
-  title:    { fontSize: 28, fontWeight: '700', color: Colors.text, letterSpacing: -0.5 },
-  subtitle: { fontSize: 13, color: Colors.text3, marginTop: 3 },
+  // ── Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
+    marginTop: 4,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    padding: 16,
+    borderWidth: 1, borderColor: Colors.border,
+    ...Shadow.card,
+  },
+  logo:     { width: 68, height: 68, borderRadius: 16, overflow: 'hidden' },
+  title:    { fontSize: 21, fontWeight: '800', color: Colors.text, letterSpacing: -0.4 },
+  subtitle: { fontSize: 12, color: Colors.text3, marginTop: 3, lineHeight: 17 },
 
+  // ── Section label
   sectionLabel: {
-    fontSize: 11, fontWeight: '700', letterSpacing: 0.8,
-    color: Colors.text3, textTransform: 'uppercase', marginBottom: 8, paddingLeft: 2,
+    fontSize: 11, fontWeight: '700', letterSpacing: 1,
+    color: Colors.text3, textTransform: 'uppercase',
+    marginBottom: 8, paddingLeft: 4,
   },
-  card: {
-    backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    borderWidth: 0.5, borderColor: Colors.border, overflow: 'hidden', marginBottom: 20,
-  },
-  rowDivider: { borderBottomWidth: 0.5, borderBottomColor: Colors.border },
 
-  // Mode selector
-  modeRow:         { flexDirection: 'row', alignItems: 'flex-start', padding: 14, gap: 10 },
-  modeRowSelected: { backgroundColor: '#FAFFF7' },
-  radio:    { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border2, alignItems: 'center', justifyContent: 'center', marginTop: 2, flexShrink: 0 },
+  // ── Card
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    overflow: 'hidden',
+    marginBottom: 24,
+    ...Shadow.card,
+  },
+  rowDivider: { borderBottomWidth: 1, borderBottomColor: Colors.border },
+
+  // ── Trigger mode rows
+  modeRow:         { flexDirection: 'row', alignItems: 'flex-start', padding: 16, gap: 12 },
+  modeRowSelected: { backgroundColor: '#F6FCF0' },
+  radio:    {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 2, borderColor: Colors.border2,
+    alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
+  },
   radioOn:  { borderColor: Colors.green600 },
   radioDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.green600 },
-  modeIcon:   { width: 38, height: 38, borderRadius: 10, backgroundColor: Colors.surface2, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  modeIconOn: { backgroundColor: Colors.green50 },
-  modeTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 3 },
-  modeTitle:   { fontSize: 14, fontWeight: '500', color: Colors.text2 },
-  modeTitleOn: { color: Colors.text, fontWeight: '600' },
-  modeTag:     { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
-  modeTagText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
-  modeDesc:    { fontSize: 12, color: Colors.text3, lineHeight: 17 },
+  modeIcon:    {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: Colors.surface2,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  modeIconOn:  { backgroundColor: Colors.green50 },
+  modeTitleRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
+  modeTitle:    { fontSize: 14, fontWeight: '500', color: Colors.text2 },
+  modeTitleOn:  { color: Colors.text, fontWeight: '600' },
+  modeTag:      { borderRadius: 20, paddingHorizontal: 8, paddingVertical: 2 },
+  modeTagText:  { fontSize: 10, fontWeight: '700', letterSpacing: 0.2 },
+  modeDesc:     { fontSize: 12, color: Colors.text3, lineHeight: 18 },
 
-  // Message editor
-  editor:   { padding: 14, fontSize: 14, color: Colors.text, lineHeight: 22, minHeight: 110 },
-  editorBar:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 0.5, borderTopColor: Colors.border, paddingHorizontal: 14, paddingVertical: 8 },
-  charCount:{ fontSize: 11, color: Colors.text3 },
-  charWarn: { color: Colors.red },
-  saveBtn:  { backgroundColor: Colors.green600, borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 7 },
+  // ── Message editor
+  editor:    { padding: 16, fontSize: 14, color: Colors.text, lineHeight: 22, minHeight: 120 },
+  editorBar: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: Colors.border,
+    paddingHorizontal: 16, paddingVertical: 10,
+  },
+  charCount:   { fontSize: 11, color: Colors.text3 },
+  charWarn:    { color: Colors.red },
+  saveBtn:     {
+    backgroundColor: Colors.green600, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 6,
+  },
   saveBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  savedNote:   { fontSize: 12, color: Colors.green600, marginTop: -14, marginBottom: 20, paddingLeft: 2 },
+  savedBadge:  { fontSize: 12, fontWeight: '600', color: Colors.green600 },
 
-  // Presets
-  presetRow:  { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
-  presetIcon: { width: 36, height: 36, borderRadius: 9, backgroundColor: Colors.surface2, alignItems: 'center', justifyContent: 'center' },
-  presetLabel:{ fontSize: 14, fontWeight: '500', color: Colors.text },
-  presetText: { fontSize: 11, color: Colors.text3, marginTop: 2 },
-  useBtn:     { fontSize: 13, fontWeight: '700', color: Colors.green600 },
+  // ── Presets
+  presetRow:   { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  presetIcon:  {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: Colors.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  presetLabel: { fontSize: 14, fontWeight: '500', color: Colors.text },
+  presetText:  { fontSize: 11, color: Colors.text3, marginTop: 2 },
+  useChip:     {
+    borderWidth: 1, borderColor: Colors.green600,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
+  },
+  useChipText: { fontSize: 12, fontWeight: '600', color: Colors.green600 },
 
-  // Behaviour toggles
-  switchRow:   { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 },
+  // ── Behaviour toggles
+  switchRow:   { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   switchTitle: { fontSize: 14, fontWeight: '500', color: Colors.text },
-  switchSub:   { fontSize: 11, color: Colors.text3, marginTop: 2 },
+  switchSub:   { fontSize: 12, color: Colors.text3, marginTop: 2 },
 
-  // iOS note
-  iosNote: { backgroundColor: Colors.amber50, borderRadius: Radius.md, padding: 14, borderWidth: 0.5, borderColor: Colors.amber600 + '55' },
-  iosTitle:{ fontSize: 13, fontWeight: '700', color: Colors.amber800, marginBottom: 6 },
-  iosBody: { fontSize: 12, color: Colors.amber800, lineHeight: 18 },
-
-  // Logo
-  logo: { width: 64, height: 64, marginBottom: 8 },
-
-  // 2factor.in API key
-  apiKeyRow:       { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10, borderBottomWidth: 0.5, borderBottomColor: Colors.border },
-  apiKeyIconWrap:  { width: 38, height: 38, borderRadius: 10, backgroundColor: Colors.surface2, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  apiKeyTitle:     { fontSize: 14, fontWeight: '500', color: Colors.text },
-  apiKeySub:       { fontSize: 11, color: Colors.text3, marginTop: 2 },
-  apiKeyInputRow:  { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 10, gap: 8 },
-  apiKeyInput:     { flex: 1, fontSize: 13, color: Colors.text, borderWidth: 0.5, borderColor: Colors.border, borderRadius: Radius.sm, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: Colors.bg },
-  apiKeySaveBtn:   { backgroundColor: Colors.green600, borderRadius: Radius.sm, paddingHorizontal: 14, paddingVertical: 8 },
+  // ── SMS Provider
+  providerHeader:   {
+    flexDirection: 'row', alignItems: 'center',
+    padding: 16, gap: 12,
+    borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  providerIconWrap: {
+    width: 40, height: 40, borderRadius: 10,
+    backgroundColor: Colors.surface2,
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  },
+  providerTitle:    { fontSize: 14, fontWeight: '500', color: Colors.text },
+  providerSub:      { fontSize: 12, color: Colors.text3, marginTop: 2 },
+  activeBadge:      {
+    backgroundColor: Colors.green50, borderRadius: 20,
+    paddingHorizontal: 10, paddingVertical: 3,
+  },
+  activeBadgeText:  { fontSize: 11, fontWeight: '700', color: Colors.green800 },
+  apiKeyInputRow:   {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 10,
+  },
+  apiKeyInput:      {
+    flex: 1, fontSize: 13, color: Colors.text,
+    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 9,
+    backgroundColor: Colors.bg,
+  },
+  apiKeySaveBtn:     {
+    backgroundColor: Colors.green600,
+    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9,
+  },
   apiKeySaveBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
-  apiKeyActive:    { fontSize: 11, color: Colors.green600, paddingHorizontal: 14, paddingBottom: 10 },
 
-  // Google Ad banners
-  adBanner: { height: 50, backgroundColor: Colors.surface2, borderRadius: Radius.sm, borderWidth: 0.5, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  adLabel:  { fontSize: 11, color: Colors.text3, letterSpacing: 0.5 },
+  // ── iOS note
+  iosNote:  {
+    backgroundColor: Colors.amber50, borderRadius: Radius.md,
+    padding: 16, borderWidth: 1, borderColor: Colors.amber600 + '40',
+  },
+  iosTitle: { fontSize: 13, fontWeight: '700', color: Colors.amber800, marginBottom: 6 },
+  iosBody:  { fontSize: 12, color: Colors.amber800, lineHeight: 19 },
+
+  // ── Ad banner
+  adBanner: {
+    height: 52, backgroundColor: Colors.surface,
+    borderRadius: Radius.md,
+    borderWidth: 1, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 24,
+    ...Shadow.card,
+  },
+  adLabel: { fontSize: 11, color: Colors.text3, letterSpacing: 0.6 },
 });

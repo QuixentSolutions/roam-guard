@@ -23,12 +23,15 @@ export interface SendResult {
 
 // ─── 2factor.in API ───────────────────────────────────────────────────────────
 async function sendViaTwoFactor(
-  apiKey:   string,
-  toNumber: string,
-  message:  string,
+  apiKey:     string,
+  toNumber:   string,
+  message:    string,
+  templateId: string = '',
 ): Promise<{ success: boolean; error?: string }> {
   const encoded = encodeURIComponent(message);
-  const url = `https://2factor.in/API/V1/${apiKey}/SMS/${toNumber}/${encoded}`;
+  const url = templateId.trim()
+    ? `https://2factor.in/API/V1/${apiKey}/SMS/${toNumber}/${templateId.trim()}/${encoded}`
+    : `https://2factor.in/API/V1/${apiKey}/SMS/${toNumber}/${encoded}`;
   try {
     const res  = await fetch(url);
     const json = await res.json();
@@ -41,11 +44,12 @@ async function sendViaTwoFactor(
 
 // ─── Main send function ───────────────────────────────────────────────────────
 export async function sendAutoReplySMS(
-  toNumber:        string,
-  message:         string,
-  trigger:         string,
-  logReplies:      boolean = true,
-  twoFactorApiKey: string  = '',
+  toNumber:            string,
+  message:             string,
+  trigger:             string,
+  logReplies:          boolean = true,
+  twoFactorApiKey:     string  = '',
+  twoFactorTemplateId: string  = '',
 ): Promise<SendResult> {
   // Dedupe guard
   const lastSent = recentReplies.get(toNumber);
@@ -59,7 +63,7 @@ export async function sendAutoReplySMS(
 
   if (twoFactorApiKey.trim()) {
     // ── Try 2factor.in first ──
-    const result = await sendViaTwoFactor(twoFactorApiKey.trim(), toNumber, message);
+    const result = await sendViaTwoFactor(twoFactorApiKey.trim(), toNumber, message, twoFactorTemplateId);
     success = result.success;
     method  = 'twofactor';
     error   = result.error;

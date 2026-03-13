@@ -3,7 +3,11 @@ import { Text, Platform } from 'react-native';
 import { Colors } from '../src/constants/theme';
 
 function TabIcon({ emoji, active }: { emoji: string; active: boolean }) {
-  return <Text style={{ fontSize: 20, opacity: active ? 1 : 0.4 }}>{emoji}</Text>;
+  return (
+    <Text style={{ fontSize: active ? 24 : 20, opacity: active ? 1 : 0.75 }}>
+      {emoji}
+    </Text>
+  );
 }
 
 export default function RootLayout() {
