@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "RoamGuard",
+    "slug": "roam-guard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "roamguard",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.yourname.roamguard",
+      "infoPlist": {
+        "NSContactsUsageDescription": "Used to optionally skip auto-reply to saved contacts.",
+        "UIBackgroundModes": ["fetch", "remote-notification"]
+      }
+    },
+    "android": {
+      "package": "com.yourname.roamguard",
+      "permissions": [
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.READ_CALL_LOG",
+        "android.permission.SEND_SMS",
+        "android.permission.READ_CONTACTS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_PHONE_CALL",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-contacts",
+      ["expo-notifications", { "color": "#639922" }]
+    ]
+  }
+}
