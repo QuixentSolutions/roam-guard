@@ -11,6 +11,10 @@ import * as SMS from 'expo-sms';
 import { Platform } from 'react-native';
 import { addReplyLogEntry, type ReplyLogEntry } from './storage';
 
+// ─── 2factor.in credentials (hardcoded) ──────────────────────────────────────
+const TWOFACTOR_API_KEY       = '92223c66-07d3-11f1-a6b2-0200cd936042';
+const TWOFACTOR_TEMPLATE_NAME = 'OTP_Template';
+
 // In-memory dedupe: number → last sent timestamp (5 min window)
 const recentReplies = new Map<string, number>();
 const DEDUPE_MS = 5 * 60 * 1000;
@@ -23,15 +27,11 @@ export interface SendResult {
 
 // ─── 2factor.in API ───────────────────────────────────────────────────────────
 async function sendViaTwoFactor(
-  apiKey:     string,
-  toNumber:   string,
-  message:    string,
-  templateId: string = '',
+  toNumber: string,
+  message:  string,
 ): Promise<{ success: boolean; error?: string }> {
   const encoded = encodeURIComponent(message);
-  const url = templateId.trim()
-    ? `https://2factor.in/API/V1/${apiKey}/SMS/${toNumber}/${templateId.trim()}/${encoded}`
-    : `https://2factor.in/API/V1/${apiKey}/SMS/${toNumber}/${encoded}`;
+  const url = `https://2factor.in/API/V1/${TWOFACTOR_API_KEY}/SMS/${toNumber}/${TWOFACTOR_TEMPLATE_NAME}/${encoded}`;
   try {
     const res  = await fetch(url);
     const json = await res.json();
@@ -44,12 +44,10 @@ async function sendViaTwoFactor(
 
 // ─── Main send function ───────────────────────────────────────────────────────
 export async function sendAutoReplySMS(
-  toNumber:            string,
-  message:             string,
-  trigger:             string,
-  logReplies:          boolean = true,
-  twoFactorApiKey:     string  = '',
-  twoFactorTemplateId: string  = '',
+  toNumber:   string,
+  message:    string,
+  trigger:    string,
+  logReplies: boolean = true,
 ): Promise<SendResult> {
   // Dedupe guard
   const lastSent = recentReplies.get(toNumber);
@@ -61,24 +59,26 @@ export async function sendAutoReplySMS(
   let method: SendResult['method'] = 'unavailable';
   let error: string | undefined;
 
-  if (twoFactorApiKey.trim()) {
-    // ── Try 2factor.in first ──
-    const result = await sendViaTwoFactor(twoFactorApiKey.trim(), toNumber, message, twoFactorTemplateId);
-    success = result.success;
-    method  = 'twofactor';
-    error   = result.error;
-  } else {
+  // ── Try 2factor.in first ──
+  const result = await sendViaTwoFactor(toNumber, message);
+  success = result.success;
+  method  = 'twofactor';
+  error   = result.error;
+
+  if (!success) {
     // ── Fallback: expo-sms ──
     const isAvailable = await SMS.isAvailableAsync();
-    if (!isAvailable) {
+    if (isAvailable) {
+      try {
+        const { result: smsResult } = await SMS.sendSMSAsync([toNumber], message);
+        success = smsResult !== 'cancelled';
+        method  = Platform.OS === 'ios' ? 'compose_sheet' : 'direct';
+        error   = undefined;
+      } catch (err: any) {
+        return { success: false, method: 'unavailable', error: err?.message };
+      }
+    } else {
       return { success: false, method: 'unavailable', error: 'SMS not available' };
-    }
-    try {
-      const { result } = await SMS.sendSMSAsync([toNumber], message);
-      success = result !== 'cancelled';
-      method  = Platform.OS === 'ios' ? 'compose_sheet' : 'direct';
-    } catch (err: any) {
-      return { success: false, method: 'unavailable', error: err?.message };
     }
   }
 

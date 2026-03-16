@@ -4,6 +4,7 @@
     "slug": "roam-guard",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "automatic",
     "scheme": "roamguard",
     "newArchEnabled": true,
@@ -20,6 +21,10 @@
     },
     "android": {
       "package": "com.yourname.roamguard",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#ffffff"
+      },
       "permissions": [
         "android.permission.READ_PHONE_STATE",
         "android.permission.READ_CALL_LOG",

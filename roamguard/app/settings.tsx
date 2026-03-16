@@ -71,14 +71,11 @@ const PRESETS = [
 ];
 
 export default function SettingsScreen() {
-  const [draft,           setDraft]           = useState('');
-  const [saved,           setSaved]           = useState('');
-  const [triggerMode,     setTriggerMode]     = useState<TriggerMode>('both');
-  const [skipContacts,    setSkipContacts]    = useState(false);
-  const [logReplies,      setLogReplies]      = useState(true);
-  const [twoFactorApiKey,     setTwoFactorApiKey]     = useState('');
-  const [twoFactorTemplateId, setTwoFactorTemplateId] = useState('');
-  const [apiKeySaved,         setApiKeySaved]         = useState(false);
+  const [draft,        setDraft]        = useState('');
+  const [saved,        setSaved]        = useState('');
+  const [triggerMode,  setTriggerMode]  = useState<TriggerMode>('both');
+  const [skipContacts, setSkipContacts] = useState(false);
+  const [logReplies,   setLogReplies]   = useState(true);
 
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -88,9 +85,6 @@ export default function SettingsScreen() {
       setTriggerMode(s.triggerMode);
       setSkipContacts(s.skipContacts);
       setLogReplies(s.logReplies);
-      setTwoFactorApiKey(s.twoFactorApiKey ?? '');
-      setTwoFactorTemplateId(s.twoFactorTemplateId ?? '');
-      setApiKeySaved(true);
     })();
   }, []));
 
@@ -117,15 +111,6 @@ export default function SettingsScreen() {
   const handleLog = async (val: boolean) => {
     setLogReplies(val);
     await saveSetting('logReplies', val);
-  };
-
-  const handleSaveApiKey = async () => {
-    await Promise.all([
-      saveSetting('twoFactorApiKey', twoFactorApiKey.trim()),
-      saveSetting('twoFactorTemplateId', twoFactorTemplateId.trim()),
-    ]);
-    setApiKeySaved(true);
-    Alert.alert('Saved ✓', twoFactorApiKey.trim() ? 'SMS will be sent via 2factor.in.' : 'API key cleared. Using device SMS.');
   };
 
   const charCount = draft.length;
@@ -279,53 +264,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ── SMS Provider ───────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>SMS Provider</Text>
-        <View style={styles.card}>
-          <View style={styles.providerHeader}>
-            <View style={styles.providerIconWrap}>
-              <Text style={{ fontSize: 18 }}>📡</Text>
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.providerTitle}>2factor.in API Key</Text>
-              <Text style={styles.providerSub}>Leave empty to use device SMS</Text>
-            </View>
-            {apiKeySaved && twoFactorApiKey.trim() !== '' && (
-              <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Active</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.apiKeyInputRow}>
-            <TextInput
-              style={styles.apiKeyInput}
-              value={twoFactorApiKey}
-              onChangeText={(v) => { setTwoFactorApiKey(v); setApiKeySaved(false); }}
-              placeholder="Paste your API key here"
-              placeholderTextColor={Colors.text3}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-            />
-          </View>
-          <View style={[styles.apiKeyInputRow, styles.rowDivider]}>
-            <TextInput
-              style={styles.apiKeyInput}
-              value={twoFactorTemplateId}
-              onChangeText={(v) => { setTwoFactorTemplateId(v); setApiKeySaved(false); }}
-              placeholder="Template ID (optional)"
-              placeholderTextColor={Colors.text3}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            {!apiKeySaved && (
-              <TouchableOpacity style={styles.apiKeySaveBtn} onPress={handleSaveApiKey} activeOpacity={0.8}>
-                <Text style={styles.apiKeySaveBtnText}>Save</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
         {/* ── Ad Banner (bottom) ─────────────────────────────────────────── */}
         <View style={styles.adBanner}>
           <Text style={styles.adLabel}>Advertisement</Text>
@@ -446,40 +384,6 @@ const styles = StyleSheet.create({
   switchRow:   { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
   switchTitle: { fontSize: 14, fontWeight: '500', color: Colors.text },
   switchSub:   { fontSize: 12, color: Colors.text3, marginTop: 2 },
-
-  // ── SMS Provider
-  providerHeader:   {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 16, gap: 12,
-    borderBottomWidth: 1, borderBottomColor: Colors.border,
-  },
-  providerIconWrap: {
-    width: 40, height: 40, borderRadius: 10,
-    backgroundColor: Colors.surface2,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-  },
-  providerTitle:    { fontSize: 14, fontWeight: '500', color: Colors.text },
-  providerSub:      { fontSize: 12, color: Colors.text3, marginTop: 2 },
-  activeBadge:      {
-    backgroundColor: Colors.green50, borderRadius: 20,
-    paddingHorizontal: 10, paddingVertical: 3,
-  },
-  activeBadgeText:  { fontSize: 11, fontWeight: '700', color: Colors.green800 },
-  apiKeyInputRow:   {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12, gap: 10,
-  },
-  apiKeyInput:      {
-    flex: 1, fontSize: 13, color: Colors.text,
-    borderWidth: 1, borderColor: Colors.border,
-    borderRadius: Radius.sm, paddingHorizontal: 12, paddingVertical: 9,
-    backgroundColor: Colors.bg,
-  },
-  apiKeySaveBtn:     {
-    backgroundColor: Colors.green600,
-    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9,
-  },
-  apiKeySaveBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
   // ── iOS note
   iosNote:  {
