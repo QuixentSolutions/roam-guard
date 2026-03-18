@@ -4,10 +4,18 @@
     "slug": "roam-guard",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "roamguard",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.yourname.roamguard",
@@ -22,7 +30,7 @@
     "android": {
       "package": "com.yourname.roamguard",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "permissions": [

@@ -20,7 +20,7 @@ export async function getNetworkStatus(): Promise<NetworkStatus> {
 
   try {
     // expo-cellular v6+ — isRoamingAsync()
-    isRoaming = (await Cellular.isRoamingAsync()) ?? false;
+    isRoaming = (await (Cellular as any).isRoamingAsync()) ?? false;
   } catch {
     // Simulator or permission not granted
   }

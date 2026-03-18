@@ -12,15 +12,21 @@
  *   - onCallMissed   { number: string, trigger: string }
  */
 
-import { NativeModulesProxy, EventEmitter, Subscription } from 'expo-modules-core';
+import { NativeModulesProxy, EventEmitter } from 'expo-modules-core';
+import type { EventSubscription } from 'expo-modules-core';
 
 // The native module object
 const RoamGuardNative = NativeModulesProxy.RoamGuardModule;
 
-const emitter = new EventEmitter(RoamGuardNative ?? {});
-
 export type CallRingingEvent = { number: string };
 export type CallMissedEvent  = { number: string; trigger: string };
+
+type RoamGuardEvents = {
+  onCallRinging: (event: CallRingingEvent) => void;
+  onCallMissed:  (event: CallMissedEvent)  => void;
+};
+
+const emitter = new EventEmitter<RoamGuardEvents>(RoamGuardNative as any);
 
 /** Start the native phone state listener (call once on app boot) */
 export function startListening(): void {
@@ -40,14 +46,14 @@ export function setTriggerMode(mode: string): void {
 /** Subscribe to ringing events */
 export function addCallRingingListener(
   listener: (event: CallRingingEvent) => void
-): Subscription {
+): EventSubscription {
   return emitter.addListener('onCallRinging', listener);
 }
 
 /** Subscribe to missed call events */
 export function addCallMissedListener(
   listener: (event: CallMissedEvent) => void
-): Subscription {
+): EventSubscription {
   return emitter.addListener('onCallMissed', listener);
 }
 
