@@ -11,9 +11,8 @@ import * as SMS from 'expo-sms';
 import { Platform } from 'react-native';
 import { addReplyLogEntry, type ReplyLogEntry } from './storage';
 
-// ─── 2factor.in credentials (hardcoded) ──────────────────────────────────────
-const TWOFACTOR_API_KEY       = '92223c66-07d3-11f1-a6b2-0200cd936042';
-const TWOFACTOR_TEMPLATE_NAME = 'OTP_Template';
+// ─── 2factor.in credentials ───────────────────────────────────────────────────
+const TWOFACTOR_API_KEY = '92223c66-07d3-11f1-a6b2-0200cd936042';
 
 // In-memory dedupe: number → last sent timestamp (5 min window)
 const recentReplies = new Map<string, number>();
@@ -27,11 +26,15 @@ export interface SendResult {
 
 // ─── 2factor.in API ───────────────────────────────────────────────────────────
 async function sendViaTwoFactor(
-  toNumber: string,
-  message:  string,
+  toNumber:     string,
+  templateName: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const encoded = encodeURIComponent(message);
-  const url = `https://2factor.in/API/V1/${TWOFACTOR_API_KEY}/SMS/${toNumber}/${TWOFACTOR_TEMPLATE_NAME}/${encoded}`;
+  const url =
+    `https://2factor.in/API/R1/?module=TRANS_SMS` +
+    `&apikey=${TWOFACTOR_API_KEY}` +
+    `&to=${encodeURIComponent(toNumber)}` +
+    `&from=ROAMGD` +
+    `&templatename=${encodeURIComponent(templateName)}`;
   try {
     const res  = await fetch(url);
     const json = await res.json();
@@ -44,10 +47,11 @@ async function sendViaTwoFactor(
 
 // ─── Main send function ───────────────────────────────────────────────────────
 export async function sendAutoReplySMS(
-  toNumber:   string,
-  message:    string,
-  trigger:    string,
-  logReplies: boolean = true,
+  toNumber:     string,
+  message:      string,
+  templateName: string,
+  trigger:      string,
+  logReplies:   boolean = true,
 ): Promise<SendResult> {
   // Dedupe guard
   const lastSent = recentReplies.get(toNumber);
@@ -60,7 +64,7 @@ export async function sendAutoReplySMS(
   let error: string | undefined;
 
   // ── Try 2factor.in first ──
-  const result = await sendViaTwoFactor(toNumber, message);
+  const result = await sendViaTwoFactor(toNumber, templateName);
   success = result.success;
   method  = 'twofactor';
   error   = result.error;

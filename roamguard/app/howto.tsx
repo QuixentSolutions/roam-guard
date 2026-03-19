@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, Linking, Platform, StatusBar,
+  Platform, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Radius } from '../src/constants/theme';
@@ -15,22 +15,13 @@ const FLOW_STEPS = [
 ];
 
 const ANDROID_PERMS = [
-  { icon: '📞', name: 'Read Phone State',         why: 'Detects incoming call events',         required: true  },
+  { icon: '📞', name: 'Read Phone State',         why: 'Detects incoming call events',          required: true  },
   { icon: '📋', name: 'Read Call Log',             why: 'Gets the caller\'s phone number',       required: true  },
-  { icon: '✉️', name: 'Send SMS',                  why: 'Sends the auto-reply message',          required: true  },
+  { icon: '✉️', name: 'Send SMS',                  why: 'Fallback SMS if internet unavailable',  required: true  },
   { icon: '🔔', name: 'Foreground Service',        why: 'Keeps the listener alive in background',required: true  },
-  { icon: '📁', name: 'Read Contacts',             why: 'Optional — to skip known contacts',     required: false },
   { icon: '⚡', name: 'Receive Boot Completed',    why: 'Restarts listener after phone reboot',  required: false },
 ];
 
-const IOS_STEPS = [
-  'Open the Shortcuts app on your iPhone',
-  'Go to Automation tab → tap + → Create Personal Automation',
-  'Choose Phone → Call → Any Call → Run Immediately',
-  'Add action: "Send Message" → set recipient to your WhatsApp number',
-  'Or use the URL scheme: whatsapp://send?text=MESSAGE',
-  'Enable "Don\'t Ask Before Running"',
-];
 
 export default function HowToScreen() {
   return (
@@ -101,37 +92,24 @@ export default function HowToScreen() {
           ))}
         </View>
 
-        {/* ── iOS workaround ─────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>iOS — Siri Shortcuts workaround</Text>
+        {/* ── iOS note ───────────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>iOS note</Text>
         <View style={styles.iosCard}>
-          <Text style={styles.iosHeading}>⚠️  Apple restricts silent background SMS</Text>
+          <Text style={styles.iosHeading}>ℹ️  SMS sent via cloud on iOS</Text>
           <Text style={styles.iosBody}>
-            iOS does not allow apps to send SMS automatically in the background. Use a Siri Shortcut automation as the workaround:
+            RoamGuard uses the 2factor.in cloud API to send SMS — so no compose sheet or manual confirmation is needed on iOS. The message is sent silently in the background, just like Android.
           </Text>
-          <View style={styles.iosList}>
-            {IOS_STEPS.map((step, i) => (
-              <View key={i} style={styles.iosStep}>
-                <View style={styles.iosNum}><Text style={styles.iosNumText}>{i + 1}</Text></View>
-                <Text style={styles.iosStepText}>{step}</Text>
-              </View>
-            ))}
-          </View>
-          <TouchableOpacity
-            style={styles.iosLink}
-            onPress={() => Linking.openURL('https://support.apple.com/en-us/guide/shortcuts/welcome/ios')}
-          >
-            <Text style={styles.iosLinkText}>Open Shortcuts guide →</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* ── Built with ─────────────────────────────────────────────────── */}
+        {/* ── Built with (hidden) ─────────────────────────────────────────
         <Text style={styles.sectionLabel}>Built with</Text>
         <View style={styles.card}>
           {[
             ['Expo SDK 51',           'Cross-platform framework'],
             ['expo-cellular',         'Roaming detection'],
             ['expo-network',          'Coverage detection'],
-            ['expo-sms',              'SMS sending'],
+            ['2factor.in API',        'Cloud SMS delivery'],
+            ['expo-sms',              'Fallback SMS (no internet)'],
             ['expo-router',           'Navigation'],
             ['AsyncStorage',          'Local settings storage'],
             ['Expo Modules API',      'Native call listener (Kotlin)'],
@@ -142,6 +120,7 @@ export default function HowToScreen() {
             </View>
           ))}
         </View>
+        ─────────────────────────────────────────────────────────────── */}
 
       </ScrollView>
     </SafeAreaView>
@@ -151,7 +130,7 @@ export default function HowToScreen() {
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg },
   root:    { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingBottom: 100 },
 
   header:   { marginBottom: 20 },
   title:    { fontSize: 28, fontWeight: '700', color: Colors.text, letterSpacing: -0.5 },
