@@ -18,17 +18,20 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.yourname.roamguard",
+      "bundleIdentifier": "com.identifier.roamguard",
       "infoPlist": {
         "NSContactsUsageDescription": "Used to optionally skip auto-reply to saved contacts.",
         "UIBackgroundModes": [
           "fetch",
+          "remote-notification",
+          "fetch",
           "remote-notification"
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.yourname.roamguard",
+      "package": "com.identifier.roamguard",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -58,8 +61,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "096cdbf3-6728-446a-a0da-68df18b3986a"
+        "projectId": "749070b2-75cc-4728-9ed1-51b91daffe36"
       }
-    }
+    },
+    "owner": "quixent-solutions"
   }
 }
