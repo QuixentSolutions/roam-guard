@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, Text, TextInput, ScrollView, StyleSheet,
-  TouchableOpacity, Alert, Switch, Platform, Image,
+  View, Text, ScrollView, StyleSheet,
+  TouchableOpacity, Platform, Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
@@ -54,67 +54,41 @@ const TRIGGER_MODES: {
 // ─── Message presets ──────────────────────────────────────────────────────────
 const PRESETS = [
   {
-    icon:  '💬',
-    label: 'Short & direct',
-    text:  "I'm abroad — please WhatsApp me instead of calling. Thanks!",
+    icon:         '💬',
+    label:        'Short & direct',
+    text:         "I am currently unavailable. Please contact me on WhatsApp. Thank you!-QUIXENT DELIVERABLES PRIVATE LIMITED",
+    templateName: 'AUTOREPLY MESSAGE',
   },
   {
-    icon:  '✈️',
-    label: 'Mentions roaming fees',
-    text:  "Hi! I'm currently abroad. To avoid roaming charges, please reach me on WhatsApp instead. Thank you!",
+    icon:         '✈️',
+    label:        'Mentions roaming fees',
+    text:         "Hi! I'm currently abroad. To avoid roaming charges, please reach me on WhatsApp instead. Thank you!-QUIXENT DELIVERABLES PRIVATE LIMITED",
+    templateName: 'Mentions roaming fees',
   },
   {
-    icon:  '🌍',
-    label: 'With timezone note',
-    text:  "I'm travelling internationally and may be in a different timezone. Please contact me via WhatsApp and I'll reply as soon as I can!",
+    icon:         '🌍',
+    label:        'With timezone note',
+    text:         "I'm travelling internationally and may be in a different timezone. Please contact me via WhatsApp and I'll reply as soon as I can!-QUIXENT DELIVERABLES PRIVATE LIMITED",
+    templateName: 'With timezone note',
   },
 ];
 
 export default function SettingsScreen() {
-  const [draft,        setDraft]        = useState('');
-  const [saved,        setSaved]        = useState('');
+  const [templateName, setTemplateName] = useState('AUTOREPLY MESSAGE');
   const [triggerMode,  setTriggerMode]  = useState<TriggerMode>('both');
-  const [skipContacts, setSkipContacts] = useState(false);
-  const [logReplies,   setLogReplies]   = useState(true);
 
   useFocusEffect(useCallback(() => {
     (async () => {
       const s = await loadSettings();
-      setDraft(s.message);
-      setSaved(s.message);
+      setTemplateName(s.templateName);
       setTriggerMode(s.triggerMode);
-      setSkipContacts(s.skipContacts);
-      setLogReplies(s.logReplies);
     })();
   }, []));
-
-  const handleSave = async () => {
-    if (!draft.trim()) {
-      Alert.alert('Empty message', 'Please write a message before saving.');
-      return;
-    }
-    await saveSetting('message', draft.trim());
-    setSaved(draft.trim());
-    Alert.alert('Saved ✓', 'Your auto-reply message has been updated.');
-  };
 
   const handleMode = async (id: TriggerMode) => {
     setTriggerMode(id);
     await saveSetting('triggerMode', id);
   };
-
-  const handleSkip = async (val: boolean) => {
-    setSkipContacts(val);
-    await saveSetting('skipContacts', val);
-  };
-
-  const handleLog = async (val: boolean) => {
-    setLogReplies(val);
-    await saveSetting('logReplies', val);
-  };
-
-  const charCount = draft.length;
-  const isDirty   = draft.trim() !== saved.trim();
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -182,87 +156,37 @@ export default function SettingsScreen() {
           })}
         </View>
 
-        {/* ── Message editor ─────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Auto-reply message</Text>
-        <View style={styles.card}>
-          <TextInput
-            style={styles.editor}
-            value={draft}
-            onChangeText={setDraft}
-            multiline
-            placeholder="Type your auto-reply message here…"
-            placeholderTextColor={Colors.text3}
-            textAlignVertical="top"
-            maxLength={320}
-          />
-          <View style={styles.editorBar}>
-            <Text style={[styles.charCount, charCount > 280 && styles.charWarn]}>
-              {charCount}/320 · {charCount > 160 ? '2 SMS parts' : '1 SMS'}
-            </Text>
-            {isDirty ? (
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
-                <Text style={styles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
-            ) : (
-              <Text style={styles.savedBadge}>✓ Saved</Text>
-            )}
-          </View>
-        </View>
-
         {/* ── Presets ────────────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Quick presets</Text>
         <View style={styles.card}>
-          {PRESETS.map((p, i) => (
+          {PRESETS.map((p, i) => {
+            const selected = templateName === p.templateName;
+            return (
             <TouchableOpacity
               key={i}
-              style={[styles.presetRow, i < PRESETS.length - 1 && styles.rowDivider]}
-              onPress={() => setDraft(p.text)}
+              style={[styles.presetRow, i < PRESETS.length - 1 && styles.rowDivider, selected && styles.presetRowSelected]}
+              onPress={async () => {
+                setTemplateName(p.templateName);
+                await saveSetting('message', p.text);
+                await saveSetting('templateName', p.templateName);
+              }}
               activeOpacity={0.7}
             >
-              <View style={styles.presetIcon}>
+              <View style={[styles.radio, selected && styles.radioOn]}>
+                {selected && <View style={styles.radioDot} />}
+              </View>
+              <View style={[styles.presetIcon, selected && styles.modeIconOn]}>
                 <Text style={{ fontSize: 17 }}>{p.icon}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.presetLabel}>{p.label}</Text>
-                <Text style={styles.presetText} numberOfLines={1}>{p.text}</Text>
-              </View>
-              <View style={styles.useChip}>
-                <Text style={styles.useChipText}>Use</Text>
+                <Text style={[styles.presetLabel, selected && styles.modeTitleOn]}>{p.label}</Text>
+                <Text style={styles.presetText}>{p.text}</Text>
               </View>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
 
-        {/* ── Behaviour toggles ──────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Behaviour</Text>
-        <View style={styles.card}>
-          <View style={[styles.switchRow, styles.rowDivider]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.switchTitle}>Skip saved contacts</Text>
-              <Text style={styles.switchSub}>Only auto-reply to unknown numbers</Text>
-            </View>
-            <Switch
-              value={skipContacts}
-              onValueChange={handleSkip}
-              trackColor={{ false: Colors.border2, true: Colors.green200 }}
-              thumbColor={skipContacts ? Colors.green600 : '#fff'}
-              ios_backgroundColor={Colors.border2}
-            />
-          </View>
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.switchTitle}>Keep reply history</Text>
-              <Text style={styles.switchSub}>Log all auto-replies sent</Text>
-            </View>
-            <Switch
-              value={logReplies}
-              onValueChange={handleLog}
-              trackColor={{ false: Colors.border2, true: Colors.green200 }}
-              thumbColor={logReplies ? Colors.green600 : '#fff'}
-              ios_backgroundColor={Colors.border2}
-            />
-          </View>
-        </View>
 
         {/* ── Ad Banner (bottom) ─────────────────────────────────────────── */}
         <View style={styles.adBanner}>
@@ -287,7 +211,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg },
   root:    { flex: 1 },
-  content: { padding: 20, paddingBottom: 48 },
+  content: { padding: 20, paddingBottom: 100 },
 
   // ── Header
   header: {
@@ -366,7 +290,8 @@ const styles = StyleSheet.create({
   savedBadge:  { fontSize: 12, fontWeight: '600', color: Colors.green600 },
 
   // ── Presets
-  presetRow:   { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  presetRow:         { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
+  presetRowSelected: { backgroundColor: Colors.green50 },
   presetIcon:  {
     width: 38, height: 38, borderRadius: 10,
     backgroundColor: Colors.surface2,
@@ -374,11 +299,6 @@ const styles = StyleSheet.create({
   },
   presetLabel: { fontSize: 14, fontWeight: '500', color: Colors.text },
   presetText:  { fontSize: 11, color: Colors.text3, marginTop: 2 },
-  useChip:     {
-    borderWidth: 1, borderColor: Colors.green600,
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
-  },
-  useChipText: { fontSize: 12, fontWeight: '600', color: Colors.green600 },
 
   // ── Behaviour toggles
   switchRow:   { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },

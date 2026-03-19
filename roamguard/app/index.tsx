@@ -233,7 +233,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg },
   root:    { flex: 1 },
-  content: { padding: 20, paddingBottom: 48 },
+  content: { padding: 20, paddingBottom: 100 },
 
   // ── Header
   header: {
