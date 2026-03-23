@@ -9,7 +9,6 @@
 
 import * as SMS from 'expo-sms';
 import { Platform } from 'react-native';
-import { addReplyLogEntry, type ReplyLogEntry } from './storage';
 
 // ─── 2factor.in credentials ───────────────────────────────────────────────────
 const TWOFACTOR_API_KEY = '92223c66-07d3-11f1-a6b2-0200cd936042';
@@ -50,8 +49,6 @@ export async function sendAutoReplySMS(
   toNumber:     string,
   message:      string,
   templateName: string,
-  trigger:      string,
-  logReplies:   boolean = true,
 ): Promise<SendResult> {
   // Dedupe guard
   const lastSent = recentReplies.get(toNumber);
@@ -88,16 +85,6 @@ export async function sendAutoReplySMS(
 
   if (success) {
     recentReplies.set(toNumber, Date.now());
-    if (logReplies) {
-      const entry: ReplyLogEntry = {
-        id:        `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        number:    toNumber,
-        timestamp: Date.now(),
-        message,
-        trigger,
-      };
-      await addReplyLogEntry(entry);
-    }
   }
 
   return { success, method, error };

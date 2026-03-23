@@ -42,7 +42,7 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
     const settings = await loadSettings();
     if (!settings.enabled) return;
 
-    await sendAutoReplySMS(number, settings.message, settings.templateName, trigger, settings.logReplies);
+    await sendAutoReplySMS(number, settings.message, settings.templateName);
     onCallEvent?.({ number, state: 'missed', trigger });
   }, [onCallEvent]);
 
@@ -57,7 +57,7 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
       (mode === 'roaming_ring' || mode === 'both') && net.isRoaming;
 
     if (shouldFireOnRing) {
-      await sendAutoReplySMS(number, settings.message, settings.templateName, 'roaming', settings.logReplies);
+      await sendAutoReplySMS(number, settings.message, settings.templateName);
       onCallEvent?.({ number, state: 'ringing', trigger: 'roaming' });
     }
   }, [onCallEvent]);

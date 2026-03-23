@@ -8,7 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../src/constants/theme';
-import { loadSettings, saveSetting, getReplyLog, ReplyLogEntry, AppSettings } from '../src/services/storage';
+import { loadSettings, saveSetting, AppSettings } from '../src/services/storage';
 import { getNetworkStatus, NetworkStatus } from '../src/services/networkService';
 import { useCallDetection } from '../src/hooks/useCallDetection';
 
@@ -17,25 +17,17 @@ const DEFAULT_NS: NetworkStatus = {
   label: 'Home network', detail: 'Auto-reply is inactive here',
 };
 
-const TRIGGER_LABELS: Record<string, { icon: string; label: string }> = {
-  roaming:           { icon: '✈️', label: 'Roaming — on ring' },
-  roaming_missed:    { icon: '✈️', label: 'Roaming — missed' },
-  no_coverage_missed:{ icon: '📵', label: 'No coverage — missed' },
-};
-
 export default function HomeScreen() {
   const [settings,   setSettings]   = useState<AppSettings | null>(null);
   const [netStatus,  setNetStatus]  = useState<NetworkStatus>(DEFAULT_NS);
-  const [log,        setLog]        = useState<ReplyLogEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [s, ns, l] = await Promise.all([
-      loadSettings(), getNetworkStatus(), getReplyLog(),
+    const [s, ns] = await Promise.all([
+      loadSettings(), getNetworkStatus(),
     ]);
     setSettings(s);
     setNetStatus(ns);
-    setLog(l);
   }, []);
 
   useFocusEffect(useCallback(() => {
@@ -44,16 +36,12 @@ export default function HomeScreen() {
     return () => clearInterval(iv);
   }, [load]));
 
-  useCallDetection(async () => {
-    const fresh = await getReplyLog();
-    setLog(fresh);
-  });
+  useCallDetection();
 
   const handleToggle = async (val: boolean) => {
     if (val && Platform.OS === 'android') {
       const grants = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-        PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
         PermissionsAndroid.PERMISSIONS.SEND_SMS,
       ]);
       const ok =
@@ -73,10 +61,6 @@ export default function HomeScreen() {
   };
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
-  const todayCount = log.filter(
-    e => new Date(e.timestamp).toDateString() === new Date().toDateString()
-  ).length;
 
   if (!settings) return null;
 
@@ -170,18 +154,6 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* ── Stats ──────────────────────────────────────────────────────── */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{todayCount}</Text>
-            <Text style={styles.statLabel}>Replies today</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>{log.length}</Text>
-            <Text style={styles.statLabel}>Total replies</Text>
-          </View>
-        </View>
-
         {/* ── Message preview ────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Auto-reply message</Text>
         <View style={styles.msgCard}>
@@ -191,38 +163,6 @@ export default function HomeScreen() {
               {settings.message || 'No message set — go to Settings'}
             </Text>
           </View>
-        </View>
-
-        {/* ── Activity log ───────────────────────────────────────────────── */}
-        <Text style={styles.sectionLabel}>Recent activity</Text>
-        <View style={styles.card}>
-          {log.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>📭</Text>
-              <Text style={styles.emptyTitle}>No replies sent yet</Text>
-              <Text style={styles.emptySub}>Enable above and travel — replies appear here</Text>
-            </View>
-          ) : (
-            log.slice(0, 15).map((entry, i) => {
-              const t = TRIGGER_LABELS[entry.trigger] ?? { icon: '✉️', label: entry.trigger };
-              return (
-                <View key={entry.id} style={[styles.logRow, i < Math.min(log.length, 15) - 1 && styles.rowDivider]}>
-                  <View style={styles.logIcon}>
-                    <Text style={{ fontSize: 16 }}>{t.icon}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.logNum}>{entry.number}</Text>
-                    <Text style={styles.logMeta}>
-                      {new Date(entry.timestamp).toLocaleString()} · {t.label}
-                    </Text>
-                  </View>
-                  <View style={styles.sentBadge}>
-                    <Text style={styles.sentBadgeText}>Sent</Text>
-                  </View>
-                </View>
-              );
-            })
-          )}
         </View>
 
       </ScrollView>
@@ -299,16 +239,6 @@ const styles = StyleSheet.create({
   nowBadge:     { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
   nowBadgeText: { fontSize: 11, fontWeight: '700' },
 
-  // ── Stats
-  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  statCard: {
-    flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.lg,
-    padding: 16, borderWidth: 1, borderColor: Colors.border,
-    ...Shadow.card,
-  },
-  statNum:   { fontSize: 36, fontWeight: '800', color: Colors.text, letterSpacing: -1 },
-  statLabel: { fontSize: 11, color: Colors.text3, marginTop: 3, fontWeight: '500' },
-
   // ── Section label
   sectionLabel: {
     fontSize: 11, fontWeight: '700', letterSpacing: 1,
@@ -327,17 +257,4 @@ const styles = StyleSheet.create({
   bubble:     { backgroundColor: Colors.surface2, borderRadius: Radius.md, padding: 14 },
   bubbleText: { fontSize: 13, color: Colors.text, lineHeight: 20 },
 
-  // ── Empty state
-  empty:      { padding: 36, alignItems: 'center' },
-  emptyIcon:  { fontSize: 36, marginBottom: 12 },
-  emptyTitle: { fontSize: 14, fontWeight: '600', color: Colors.text3 },
-  emptySub:   { fontSize: 12, color: Colors.text3, marginTop: 4, textAlign: 'center', lineHeight: 18 },
-
-  // ── Log rows
-  logRow:    { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 12 },
-  logIcon:   { width: 38, height: 38, borderRadius: 10, backgroundColor: Colors.green50, alignItems: 'center', justifyContent: 'center' },
-  logNum:    { fontSize: 13, fontWeight: '600', color: Colors.text },
-  logMeta:   { fontSize: 11, color: Colors.text3, marginTop: 2 },
-  sentBadge: { backgroundColor: Colors.green50, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
-  sentBadgeText: { fontSize: 11, fontWeight: '700', color: Colors.green800 },
 });
