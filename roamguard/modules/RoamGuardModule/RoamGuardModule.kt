@@ -63,7 +63,7 @@ class RoamGuardModule : Module() {
             prefs.edit().putString("message", message).apply()
         }
 
-        Function("getNetworkStatus") ->Map<String, Any> {
+        Function("getNetworkStatus") {
             val ctx = appContext.reactContext!!
             val tm  = ctx.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
             val roaming    = tm?.isNetworkRoaming ?: false
