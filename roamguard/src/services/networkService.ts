@@ -14,7 +14,14 @@ export interface NetworkStatus {
   detail:          string;
 }
 
+// ─── TEST MODE — set to false before Play Store build ─────────────────────────
+const TEST_MODE = true;
+
 export async function getNetworkStatus(): Promise<NetworkStatus> {
+  if (TEST_MODE) {
+    return { isRoaming: true, isOutOfCoverage: false, shouldAutoReply: true, label: 'TEST MODE — Roaming simulated', detail: 'SMS fires on every call' };
+  }
+
   let isRoaming       = false;
   let isOutOfCoverage = false;
 
