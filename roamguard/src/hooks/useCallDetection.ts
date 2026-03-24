@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { AppState, AppStateStatus, NativeEventEmitter, NativeModules, Platform } from 'react-native';
+import { Alert, AppState, AppStateStatus, NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import { loadSettings } from '../services/storage';
 import { getNetworkStatus } from '../services/networkService';
 import { sendAutoReplySMS } from '../services/smsService';
@@ -39,26 +39,49 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
   const appState = useRef(AppState.currentState);
 
   const handleMissedCall = useCallback(async (number: string, trigger: string) => {
+    Alert.alert('📞 Missed Call', `From: ${number}\nTrigger: ${trigger}`);
     const settings = await loadSettings();
-    if (!settings.enabled) return;
+    if (!settings.enabled) { Alert.alert('⛔ Skipped', 'App is disabled'); return; }
 
-    await sendAutoReplySMS(number, settings.message, settings.templateName);
+    Alert.alert('📤 Sending SMS...', `To: ${number}`);
+    const result = await sendAutoReplySMS(number, settings.message, settings.templateName);
+
+    if (result.success) {
+      Alert.alert('✅ SMS Sent', `Auto-reply sent to ${number}`);
+    } else if (result.method === 'skipped') {
+      Alert.alert('⏭ Skipped', `Already sent to ${number} within 5 mins`);
+    } else {
+      Alert.alert('❌ SMS Failed', result.error ?? 'Unknown error');
+    }
     onCallEvent?.({ number, state: 'missed', trigger });
   }, [onCallEvent]);
 
   const handleRingingCall = useCallback(async (number: string) => {
+    Alert.alert('📳 Call Ringing', `From: ${number}`);
     const settings = await loadSettings();
-    if (!settings.enabled) return;
+    if (!settings.enabled) { Alert.alert('⛔ Skipped', 'App is disabled'); return; }
 
     const net = await getNetworkStatus();
     const mode: TriggerMode = settings.triggerMode;
+    Alert.alert('🌐 Network Check', `Roaming: ${net.isRoaming}\nMode: ${mode}`);
 
     const shouldFireOnRing =
       (mode === 'roaming_ring' || mode === 'both') && net.isRoaming;
 
     if (shouldFireOnRing) {
-      await sendAutoReplySMS(number, settings.message, settings.templateName);
+      Alert.alert('📤 Sending SMS...', `To: ${number}`);
+      const result = await sendAutoReplySMS(number, settings.message, settings.templateName);
+
+      if (result.success) {
+        Alert.alert('✅ SMS Sent', `Auto-reply sent to ${number}`);
+      } else if (result.method === 'skipped') {
+        Alert.alert('⏭ Skipped', `Already sent to ${number} within 5 mins`);
+      } else {
+        Alert.alert('❌ SMS Failed', result.error ?? 'Unknown error');
+      }
       onCallEvent?.({ number, state: 'ringing', trigger: 'roaming' });
+    } else {
+      Alert.alert('⏭ No SMS', `Conditions not met\nRoaming: ${net.isRoaming} | Mode: ${mode}`);
     }
   }, [onCallEvent]);
 
@@ -80,6 +103,7 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
     });
 
     // Tell the native module to start listening
+    Alert.alert('🟢 RoamGuard Active', 'Native call listener started');
     RoamGuardModule.startListening?.();
 
     return () => {

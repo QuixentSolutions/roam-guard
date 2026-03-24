@@ -17,6 +17,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
+import android.provider.Settings
 import android.telephony.ServiceState
 import android.telephony.TelephonyManager
 import expo.modules.kotlin.modules.Module
@@ -63,10 +64,10 @@ class RoamGuardModule : Module() {
         }
 
         Function("getNetworkStatus") ->Map<String, Any> {
-            val tm = appContext.reactContext!!
-                .getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+            val ctx = appContext.reactContext!!
+            val tm  = ctx.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
             val roaming    = tm?.isNetworkRoaming ?: false
-            val noCoverage = isOutOfCoverage(tm)
+            val noCoverage = isOutOfCoverage(ctx, tm)
             mapOf(
                 "isRoaming"       to roaming,
                 "isOutOfCoverage" to noCoverage,
@@ -87,7 +88,15 @@ class RoamGuardModule : Module() {
 
     // ── Network helpers ───────────────────────────────────────────────────────
 
-    private fun isOutOfCoverage(tm: TelephonyManager?): Boolean {
+    private fun isAirplaneModeOn(context: Context): Boolean {
+        return Settings.Global.getInt(
+            context.contentResolver,
+            Settings.Global.AIRPLANE_MODE_ON, 0
+        ) != 0
+    }
+
+    private fun isOutOfCoverage(context: Context, tm: TelephonyManager?): Boolean {
+        if (isAirplaneModeOn(context)) return true
         if (tm == null) return false
         if (tm.simState != TelephonyManager.SIM_STATE_READY) return false
         val state = tm.serviceState?.state ?: return false
@@ -171,7 +180,7 @@ class CallStateReceiver(
 
                     val num        = ringingNum!!
                     val roaming    = testMode || tm?.isNetworkRoaming == true
-                    val noCoverage = testMode || isOutOfCoverage(tm)
+                    val noCoverage = testMode || isOutOfCoverage(context, tm)
                     val now        = System.currentTimeMillis()
 
                     // Dedupe
@@ -207,7 +216,11 @@ class CallStateReceiver(
         smsSent      = false
     }
 
-    private fun isOutOfCoverage(tm: TelephonyManager?): Boolean {
+    private fun isOutOfCoverage(context: Context, tm: TelephonyManager?): Boolean {
+        val isAirplane = Settings.Global.getInt(
+            context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0
+        ) != 0
+        if (isAirplane) return true
         if (tm?.simState != TelephonyManager.SIM_STATE_READY) return false
         val s = tm.serviceState?.state ?: return false
         return s == ServiceState.STATE_OUT_OF_SERVICE || s == ServiceState.STATE_EMERGENCY_ONLY
