@@ -54,6 +54,10 @@ class RoamGuardModule : Module() {
             prefs.edit().putBoolean("enabled", enabled).apply()
         }
 
+        Function("setTestMode") { testMode: Boolean ->
+            prefs.edit().putBoolean("test_mode", testMode).apply()
+        }
+
         Function("saveMessage") { message: String ->
             prefs.edit().putString("message", message).apply()
         }
@@ -134,9 +138,10 @@ class CallStateReceiver(
         val state  = intent.getStringExtra(TelephonyManager.EXTRA_STATE) ?: return
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
 
-        val prefs = context.getSharedPreferences("roamguard", Context.MODE_PRIVATE)
-        val tm    = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
-        val mode  = prefs.getString("trigger_mode", "both") ?: "both"
+        val prefs    = context.getSharedPreferences("roamguard", Context.MODE_PRIVATE)
+        val tm       = context.getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+        val mode     = prefs.getString("trigger_mode", "both") ?: "both"
+        val testMode = prefs.getBoolean("test_mode", false)
 
         when (state) {
 
@@ -148,7 +153,7 @@ class CallStateReceiver(
 
                     // Ring-time trigger: roaming_ring or both
                     val ringMode = mode == "roaming_ring" || mode == "both"
-                    if (ringMode && (tm?.isNetworkRoaming == true)) {
+                    if (ringMode && (testMode || tm?.isNetworkRoaming == true)) {
                         emit("onCallRinging", mapOf("number" to (number ?: "")))
                     }
                 }
@@ -165,8 +170,8 @@ class CallStateReceiver(
                     && !smsSent) {
 
                     val num        = ringingNum!!
-                    val roaming    = tm?.isNetworkRoaming == true
-                    val noCoverage = isOutOfCoverage(tm)
+                    val roaming    = testMode || tm?.isNetworkRoaming == true
+                    val noCoverage = testMode || isOutOfCoverage(tm)
                     val now        = System.currentTimeMillis()
 
                     // Dedupe

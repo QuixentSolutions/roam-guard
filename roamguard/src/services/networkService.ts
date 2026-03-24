@@ -5,6 +5,10 @@
 
 import * as Cellular from 'expo-cellular';
 import * as Network  from 'expo-network';
+import { NativeModules } from 'react-native';
+
+// ─── TEST MODE — set to false before Play Store build ─────────────────────────
+export const TEST_MODE = true;
 
 export interface NetworkStatus {
   isRoaming:       boolean;
@@ -14,13 +18,16 @@ export interface NetworkStatus {
   detail:          string;
 }
 
-// ─── TEST MODE — set to false before Play Store build ─────────────────────────
-const TEST_MODE = true;
-
 export async function getNetworkStatus(): Promise<NetworkStatus> {
+  // In test mode — simulate roaming and tell native module to bypass checks
   if (TEST_MODE) {
-    return { isRoaming: true, isOutOfCoverage: false, shouldAutoReply: true, label: 'TEST MODE — Roaming simulated', detail: 'SMS fires on every call' };
+    NativeModules.RoamGuardModule?.setTestMode?.(true);
+    return {
+      isRoaming: true, isOutOfCoverage: false, shouldAutoReply: true,
+      label: 'TEST MODE — Roaming simulated', detail: 'SMS fires on every call',
+    };
   }
+  NativeModules.RoamGuardModule?.setTestMode?.(false);
 
   let isRoaming       = false;
   let isOutOfCoverage = false;
