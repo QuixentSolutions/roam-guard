@@ -44,6 +44,7 @@ export default function HomeScreen() {
       const grants = await PermissionsAndroid.requestMultiple([
         PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
         PermissionsAndroid.PERMISSIONS.SEND_SMS,
+        PermissionsAndroid.PERMISSIONS.READ_CALL_LOG,
       ]);
       const ok =
         grants['android.permission.READ_PHONE_STATE'] === 'granted' &&
@@ -84,7 +85,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" backgroundColor={Colors.bg} />
+      <StatusBar style="dark" />
       <ScrollView
         style={styles.root}
         contentContainerStyle={styles.content}
