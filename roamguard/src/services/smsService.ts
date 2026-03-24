@@ -26,16 +26,26 @@ export interface SendResult {
 // ─── 2factor.in API ───────────────────────────────────────────────────────────
 async function sendViaTwoFactor(
   toNumber:     string,
+  message:      string,
   templateName: string,
 ): Promise<{ success: boolean; error?: string }> {
-  const url =
-    `https://2factor.in/API/R1/?module=TRANS_SMS` +
-    `&apikey=${TWOFACTOR_API_KEY}` +
-    `&to=${encodeURIComponent(toNumber)}` +
-    `&from=ROAMGD` +
-    `&templatename=${encodeURIComponent(templateName)}`;
+  // Ensure number has India country code prefix
+  const formattedNumber = toNumber.startsWith('91') ? toNumber : `91${toNumber}`;
+
+  const url  = `https://2factor.in/API/V1/${TWOFACTOR_API_KEY}/ADDON_SERVICES/SEND/TSMS`;
+  const body = new URLSearchParams({
+    From:         'ROAMGD',
+    To:           formattedNumber,
+    TemplateName: templateName,
+    MSG:          message,
+  });
+
   try {
-    const res  = await fetch(url);
+    const res  = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body:    body.toString(),
+    });
     const json = await res.json();
     if (json.Status === 'Success') return { success: true };
     return { success: false, error: json.Details ?? 'Unknown error' };
@@ -61,7 +71,7 @@ export async function sendAutoReplySMS(
   let error: string | undefined;
 
   // ── Try 2factor.in first ──
-  const result = await sendViaTwoFactor(toNumber, templateName);
+  const result = await sendViaTwoFactor(toNumber, message, templateName);
   success = result.success;
   method  = 'twofactor';
   error   = result.error;
