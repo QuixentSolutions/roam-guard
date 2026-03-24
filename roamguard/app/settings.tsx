@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../src/constants/theme';
 import { loadSettings, saveSetting, TriggerMode } from '../src/services/storage';
@@ -74,6 +75,7 @@ const PRESETS = [
 ];
 
 export default function SettingsScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [templateName, setTemplateName] = useState('AUTOREPLY MESSAGE');
   const [triggerMode,  setTriggerMode]  = useState<TriggerMode>('both');
 
@@ -92,8 +94,8 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar style="dark" backgroundColor={Colors.bg} />
-      <ScrollView style={styles.root} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <StatusBar style="dark" />
+      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 20 }]} showsVerticalScrollIndicator={false}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>

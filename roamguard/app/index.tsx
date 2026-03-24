@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../src/constants/theme';
 import { loadSettings, saveSetting, AppSettings } from '../src/services/storage';
@@ -19,6 +20,7 @@ const DEFAULT_NS: NetworkStatus = {
 };
 
 export default function HomeScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   const [settings,   setSettings]   = useState<AppSettings | null>(null);
   const [netStatus,  setNetStatus]  = useState<NetworkStatus>(DEFAULT_NS);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,7 +90,7 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       <ScrollView
         style={styles.root}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 20 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.green600} />}
       >

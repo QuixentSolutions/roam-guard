@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, StyleSheet,
   Platform, StatusBar,
 } from 'react-native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Radius } from '../src/constants/theme';
 
@@ -24,10 +25,11 @@ const ANDROID_PERMS = [
 
 
 export default function HowToScreen() {
+  const tabBarHeight = useBottomTabBarHeight();
   return (
     <SafeAreaView style={styles.safe}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <StatusBar barStyle="dark-content" />
+      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 20 }]}>
 
         <View style={styles.header}>
           <Text style={styles.title}>How it works</Text>
