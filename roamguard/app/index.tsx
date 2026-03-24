@@ -39,6 +39,18 @@ export default function HomeScreen() {
     return () => clearInterval(iv);
   }, [load]));
 
+  // Request READ_CALL_LOG on startup so incoming number is available
+  React.useEffect(() => {
+    if (Platform.OS === 'android') {
+      PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.READ_CALL_LOG, {
+        title: 'Call Log Permission',
+        message: 'RoamGuard needs call log access to read the caller\'s number and send them an auto-reply SMS.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Deny',
+      });
+    }
+  }, []);
+
   useCallDetection();
 
   const handleToggle = async (val: boolean) => {
@@ -50,7 +62,8 @@ export default function HomeScreen() {
       ]);
       const ok =
         grants['android.permission.READ_PHONE_STATE'] === 'granted' &&
-        grants['android.permission.SEND_SMS']         === 'granted';
+        grants['android.permission.SEND_SMS']         === 'granted' &&
+        grants['android.permission.READ_CALL_LOG']    === 'granted';
       if (!ok) {
         Alert.alert(
           'Permissions needed',
