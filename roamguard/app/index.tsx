@@ -12,7 +12,6 @@ import { Colors, Radius, Shadow } from '../src/constants/theme';
 import { loadSettings, saveSetting, AppSettings } from '../src/services/storage';
 import { getNetworkStatus, NetworkStatus } from '../src/services/networkService';
 import { useCallDetection } from '../src/hooks/useCallDetection';
-import { sendAutoReplySMS } from '../src/services/smsService';
 
 const DEFAULT_NS: NetworkStatus = {
   isRoaming: false, isOutOfCoverage: false, shouldAutoReply: false,
@@ -78,17 +77,6 @@ export default function HomeScreen() {
   };
 
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
-
-  const handleTestSMS = async () => {
-    if (!settings) return;
-    Alert.alert('Sending...', 'Sending test SMS to 8526370221');
-    const result = await sendAutoReplySMS('8526370221', settings.message, settings.templateName);
-    if (result.success) {
-      Alert.alert('✅ Success', 'Test SMS sent successfully to 8526370221');
-    } else {
-      Alert.alert('❌ Failed', result.error ?? 'Unknown error');
-    }
-  };
 
   if (!settings) return null;
 
@@ -193,10 +181,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Test SMS button ─────────────────────────────────────────────── */}
-        <TouchableOpacity style={styles.testBtn} onPress={handleTestSMS} activeOpacity={0.8}>
-          <Text style={styles.testBtnText}>📨 Send Test SMS</Text>
-        </TouchableOpacity>
 
       </ScrollView>
     </SafeAreaView>
@@ -290,12 +274,5 @@ const styles = StyleSheet.create({
   bubble:     { backgroundColor: Colors.surface2, borderRadius: Radius.md, padding: 14 },
   bubbleText: { fontSize: 13, color: Colors.text, lineHeight: 20 },
 
-  // ── Test button
-  testBtn: {
-    backgroundColor: Colors.green600, borderRadius: Radius.lg,
-    padding: 16, alignItems: 'center', marginBottom: 24,
-    ...Shadow.card,
-  },
-  testBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 
 });
