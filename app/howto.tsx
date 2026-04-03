@@ -4,7 +4,7 @@ import {
   Platform, StatusBar,
 } from 'react-native';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius } from '../src/constants/theme';
 
 const FLOW_STEPS = [
@@ -26,10 +26,11 @@ const ANDROID_PERMS = [
 
 export default function HowToScreen() {
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 20 }]}>
+        <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + insets.bottom + 20 }]}>
 
         <View style={styles.header}>
           <Text style={styles.title}>How it works</Text>

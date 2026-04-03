@@ -2,34 +2,41 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, Switch, StyleSheet,
   TouchableOpacity, Alert, Platform, RefreshControl,
-  PermissionsAndroid, Image,
+  PermissionsAndroid, Image, Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../src/constants/theme';
-import { loadSettings, saveSetting, AppSettings } from '../src/services/storage';
+import { loadSettings, saveSetting, AppSettings, getCallLog, CallLogEntry } from '../src/services/storage';
 import { getNetworkStatus, NetworkStatus } from '../src/services/networkService';
 import { useCallDetection } from '../src/hooks/useCallDetection';
+import AdBanner from '../src/components/AdBanner';
 
 const DEFAULT_NS: NetworkStatus = {
-  isRoaming: false, isOutOfCoverage: false, shouldAutoReply: false,
+  isRoaming: false, isOutOfCoverage: false, isAirplane: false, noSim: false, shouldAutoReply: false,
   label: 'Home network', detail: 'Auto-reply is inactive here',
 };
 
+// Get screen dimensions for responsive layout
+const { width: screenWidth } = Dimensions.get('window');
+
 export default function HomeScreen() {
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   const [settings,   setSettings]   = useState<AppSettings | null>(null);
   const [netStatus,  setNetStatus]  = useState<NetworkStatus>(DEFAULT_NS);
+  const [callLog,    setCallLog]    = useState<CallLogEntry[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const [s, ns] = await Promise.all([
-      loadSettings(), getNetworkStatus(),
+    const [s, ns, log] = await Promise.all([
+      loadSettings(), getNetworkStatus(), getCallLog(),
     ]);
     setSettings(s);
     setNetStatus(ns);
+    setCallLog(log);
   }, []);
 
   useFocusEffect(useCallback(() => {
@@ -50,7 +57,13 @@ export default function HomeScreen() {
     }
   }, []);
 
-  useCallDetection();
+  // Listen for call events and refresh call log
+  const handleCallEvent = useCallback(() => {
+    // Refresh call log when a call event occurs
+    getCallLog().then(setCallLog);
+  }, []);
+
+  useCallDetection(handleCallEvent);
 
   const handleToggle = async (val: boolean) => {
     if (val && Platform.OS === 'android') {
@@ -89,12 +102,17 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
+      {/* Top Ad Banner */}
+      <AdBanner position="top" />
+      
       <ScrollView
         style={styles.root}
-        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 20 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.green600} />}
       >
+        {/* Main Content Container */}
+        <View style={styles.mainContent}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>
@@ -116,6 +134,9 @@ export default function HomeScreen() {
             <Text style={[styles.refreshText, { color: netColor.text }]}>↻</Text>
           </TouchableOpacity>
         </View>
+
+        {/* ── Middle Ad Banner ───────────────────────────────────────────── */}
+        <AdBanner position="middle" />
 
         {/* ── Main toggle card ───────────────────────────────────────────── */}
         <View style={[styles.toggleCard, settings.enabled && styles.toggleCardOn]}>
@@ -181,8 +202,48 @@ export default function HomeScreen() {
           </View>
         </View>
 
+        {/* ── Call Log ───────────────────────────────────────────────────── */}
+        <Text style={styles.sectionLabel}>Recent Calls</Text>
+        <View style={styles.card}>
+          {callLog.length === 0 ? (
+            <View style={styles.emptyLog}>
+              <Text style={styles.emptyLogText}>No calls yet</Text>
+            </View>
+          ) : (
+            callLog.slice(0, 10).map((entry, index) => {
+              const statusConfig = getStatusConfig(entry.status);
+              const timeAgo = getTimeAgo(entry.timestamp);
 
+              return (
+                <View key={entry.id} style={[styles.logRow, index > 0 && styles.logDivider]}>
+                  <View style={styles.logLeft}>
+                    <View style={[styles.logStatusDot, { backgroundColor: statusConfig.color }]} />
+                    <View style={styles.logInfo}>
+                      <Text style={styles.logNumber}>{formatNumber(entry.number)}</Text>
+                      <Text style={styles.logMeta}>
+                        {entry.state === 'ringing' ? '📳 Ringing' : '📞 Missed'} • {entry.trigger}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.logRight}>
+                    <View style={[styles.logStatusBadge, { backgroundColor: statusConfig.bg }]}>
+                      <Text style={[styles.logStatusText, { color: statusConfig.color }]}>
+                        {statusConfig.label}
+                      </Text>
+                    </View>
+                    <Text style={styles.logTime}>{timeAgo}</Text>
+                  </View>
+                </View>
+              );
+            })
+          )}
+        </View>
+        </View>
       </ScrollView>
+      
+      {/* Bottom Ad Banner */}
+      <AdBanner position="bottom" />
+      
     </SafeAreaView>
   );
 }
@@ -190,6 +251,19 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   safe:    { flex: 1, backgroundColor: Colors.bg },
   root:    { flex: 1 },
+  contentContainer: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  // Responsive main content container
+  mainContent: {
+    flex: 1,
+    // Ensure content takes available space with much smaller banners
+    maxWidth: '100%',
+    minWidth: 0,
+    // Add some padding to prevent content from touching side banners
+    marginHorizontal: 10,
+  },
   content: { padding: 20, paddingBottom: 100 },
 
   // ── Header
@@ -274,5 +348,70 @@ const styles = StyleSheet.create({
   bubble:     { backgroundColor: Colors.surface2, borderRadius: Radius.md, padding: 14 },
   bubbleText: { fontSize: 13, color: Colors.text, lineHeight: 20 },
 
+  // ── Call Log
+  emptyLog: {
+    padding: 24, alignItems: 'center',
+  },
+  emptyLogText: { fontSize: 13, color: Colors.text3, fontStyle: 'italic' },
+  logRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 12,
+  },
+  logDivider: { borderTopWidth: 1, borderTopColor: Colors.border },
+  logLeft: {
+    flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12,
+  },
+  logStatusDot: {
+    width: 8, height: 8, borderRadius: 4, flexShrink: 0,
+  },
+  logInfo: { flex: 1 },
+  logNumber: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  logMeta: { fontSize: 11, color: Colors.text3, marginTop: 2 },
+  logRight: {
+    alignItems: 'flex-end', gap: 4,
+  },
+  logStatusBadge: {
+    borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2,
+  },
+  logStatusText: { fontSize: 10, fontWeight: '700' },
+  logTime: { fontSize: 10, color: Colors.text3 },
+
 
 });
+
+// ─── Helper Functions ───────────────────────────────────────────────────────────
+function getStatusConfig(status: string) {
+  switch (status) {
+    case 'sent':
+      return { label: '✅ Sent', color: Colors.green600, bg: Colors.green50 };
+    case 'queued':
+      return { label: '⏳ Queued', color: Colors.amber600, bg: Colors.amber50 };
+    case 'skipped':
+      return { label: '⏭ Skipped', color: Colors.blue600, bg: Colors.blue50 };
+    case 'failed':
+      return { label: '❌ Failed', color: Colors.red, bg: '#FFE5E5' }; // Light red bg
+    default:
+      return { label: 'Unknown', color: Colors.text3, bg: Colors.surface2 };
+  }
+}
+
+function getTimeAgo(timestamp: number): string {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (seconds < 60) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
+
+function formatNumber(number: string): string {
+  // Format phone number for display
+  if (number.length > 10) {
+    return `+${number.slice(0, 2)} ${number.slice(2)}`;
+  }
+  return number;
+}

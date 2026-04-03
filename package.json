@@ -16,6 +16,7 @@
     "@react-navigation/drawer": "^7.9.4",
     "@react-navigation/native": "^7.1.33",
     "expo": "~55.0.0",
+    "expo-ads-admob": "^13.0.0",
     "expo-cellular": "~55.0.9",
     "expo-constants": "~55.0.8",
     "expo-contacts": "~55.0.9",

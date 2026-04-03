@@ -6,9 +6,10 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect } from 'expo-router';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Radius, Shadow } from '../src/constants/theme';
 import { loadSettings, saveSetting, TriggerMode } from '../src/services/storage';
+import AdBanner from '../src/components/AdBanner';
 
 // ─── Trigger mode options ─────────────────────────────────────────────────────
 const TRIGGER_MODES: {
@@ -76,6 +77,7 @@ const PRESETS = [
 
 export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
   const [templateName, setTemplateName] = useState('AUTOREPLY MESSAGE');
   const [triggerMode,  setTriggerMode]  = useState<TriggerMode>('both');
 
@@ -95,7 +97,10 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="dark" />
-      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + 20 }]} showsVerticalScrollIndicator={false}>
+      {/* Top Ad Banner */}
+      <AdBanner position="top" />
+      
+        <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingBottom: tabBarHeight + insets.bottom + 20 }]} showsVerticalScrollIndicator={false}>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <View style={styles.header}>
@@ -106,10 +111,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* ── Ad Banner ──────────────────────────────────────────────────── */}
-        <View style={styles.adBanner}>
-          <Text style={styles.adLabel}>Advertisement</Text>
-        </View>
 
         {/* ── Trigger mode selector ──────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>When to send auto-reply SMS</Text>
@@ -158,6 +159,9 @@ export default function SettingsScreen() {
           })}
         </View>
 
+        {/* ── Middle Ad Banner ───────────────────────────────────────────── */}
+        <AdBanner position="middle" />
+
         {/* ── Presets ────────────────────────────────────────────────────── */}
         <Text style={styles.sectionLabel}>Quick presets</Text>
         <View style={styles.card}>
@@ -190,10 +194,6 @@ export default function SettingsScreen() {
         </View>
 
 
-        {/* ── Ad Banner (bottom) ─────────────────────────────────────────── */}
-        <View style={styles.adBanner}>
-          <Text style={styles.adLabel}>Advertisement</Text>
-        </View>
 
         {/* ── iOS note ───────────────────────────────────────────────────── */}
         {Platform.OS === 'ios' && (
@@ -206,6 +206,10 @@ export default function SettingsScreen() {
         )}
 
       </ScrollView>
+      
+      {/* Bottom Ad Banner */}
+      <AdBanner position="bottom" />
+      
     </SafeAreaView>
   );
 }

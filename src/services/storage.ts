@@ -7,6 +7,8 @@ const K = {
   TEMPLATE_NAME: '@rg/template_name',
   TRIGGER_MODE:  '@rg/trigger_mode',
   SKIP_CONTACTS: '@rg/skip_contacts',
+  SMS_QUEUE:     '@rg/sms_queue',
+  CALL_LOG:      '@rg/call_log',
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,4 +69,66 @@ export async function saveSetting(
   };
   await AsyncStorage.setItem(map[key], String(value));
 }
+
+// ─── Call Log ───────────────────────────────────────────────────────────────────
+export type CallStatus = 'sent' | 'queued' | 'failed' | 'skipped';
+
+export interface CallLogEntry {
+  id:         string;
+  number:     string;
+  state:      'ringing' | 'missed';
+  status:     CallStatus;
+  trigger:    string;
+  timestamp:  number;
+  error?:     string;
+}
+
+/**
+ * Add a new entry to the call log.
+ * Keeps only the last 100 entries.
+ */
+export async function addCallLogEntry(entry: Omit<CallLogEntry, 'id' | 'timestamp'>): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(K.CALL_LOG);
+    const log: CallLogEntry[] = raw ? JSON.parse(raw) : [];
+
+    const newEntry: CallLogEntry = {
+      ...entry,
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: Date.now(),
+    };
+
+    // Add to beginning of array (most recent first)
+    log.unshift(newEntry);
+
+    // Keep only last 100 entries
+    const trimmed = log.slice(0, 100);
+
+    await AsyncStorage.setItem(K.CALL_LOG, JSON.stringify(trimmed));
+    console.log(`[CallLog] Added entry for ${entry.number}, status: ${entry.status}`);
+  } catch (err) {
+    console.error('[CallLog] Failed to add entry:', err);
+  }
+}
+
+/**
+ * Get the call log (most recent first).
+ */
+export async function getCallLog(): Promise<CallLogEntry[]> {
+  try {
+    const raw = await AsyncStorage.getItem(K.CALL_LOG);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Clear the call log.
+ */
+export async function clearCallLog(): Promise<void> {
+  await AsyncStorage.removeItem(K.CALL_LOG);
+}
+
 

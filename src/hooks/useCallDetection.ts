@@ -21,9 +21,9 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { Alert, AppState, AppStateStatus, NativeEventEmitter, NativeModules, Platform } from 'react-native';
-import { loadSettings } from '../services/storage';
+import { loadSettings, addCallLogEntry } from '../services/storage';
 import { getNetworkStatus } from '../services/networkService';
-import { sendAutoReplySMS } from '../services/smsService';
+import { sendAutoReplySMS, enqueueSMS, drainSMSQueue } from '../services/smsService';
 import { TriggerMode } from '../services/storage';
 
 // The native module is registered by the Expo Module (modules/RoamGuardModule)
@@ -39,19 +39,32 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
   const appState = useRef(AppState.currentState);
 
   const handleMissedCall = useCallback(async (number: string, trigger: string) => {
-    Alert.alert('📞 Missed Call', `From: ${number}\nTrigger: ${trigger}`);
+    console.log(`[useCallDetection] Missed call from ${number}, trigger: ${trigger}`);
     const settings = await loadSettings();
-    if (!settings.enabled) { Alert.alert('⛔ Skipped', 'App is disabled'); return; }
+    if (!settings.enabled) {
+      console.log('[useCallDetection] App disabled, skipping');
+      await addCallLogEntry({ number, state: 'missed', status: 'failed', trigger, error: 'App disabled' });
+      Alert.alert('⛔ Skipped', 'App is disabled');
+      return;
+    }
 
-    Alert.alert('📤 Sending SMS...', `To: ${number}`);
+    console.log(`[useCallDetection] Attempting to send SMS to ${number}`);
     const result = await sendAutoReplySMS(number, settings.message, settings.templateName);
 
     if (result.success) {
+      console.log(`[useCallDetection] SMS sent successfully to ${number}`);
+      await addCallLogEntry({ number, state: 'missed', status: 'sent', trigger });
       Alert.alert('✅ SMS Sent', `Auto-reply sent to ${number}`);
     } else if (result.method === 'skipped') {
+      console.log(`[useCallDetection] SMS skipped (dedupe) for ${number}`);
+      await addCallLogEntry({ number, state: 'missed', status: 'skipped', trigger });
       Alert.alert('⏭ Skipped', `Already sent to ${number} within 5 mins`);
     } else {
-      Alert.alert('❌ SMS Failed', result.error ?? 'Unknown error');
+      // SMS failed — enqueue for later delivery
+      console.log(`[useCallDetection] SMS failed for ${number}, enqueueing: ${result.error}`);
+      await enqueueSMS(number, settings.message, settings.templateName);
+      await addCallLogEntry({ number, state: 'missed', status: 'queued', trigger, error: result.error });
+      Alert.alert('❌ SMS Queued', `Will send to ${number} when online`);
     }
     onCallEvent?.({ number, state: 'missed', trigger });
   }, [onCallEvent]);
@@ -69,18 +82,29 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
       (mode === 'roaming_ring' || mode === 'both') && net.isRoaming;
 
     if (shouldFireOnRing) {
+      console.log(`[useCallDetection] Ringing call from ${number}, sending SMS`);
       Alert.alert('📤 Sending SMS...', `To: ${number}`);
       const result = await sendAutoReplySMS(number, settings.message, settings.templateName);
 
       if (result.success) {
+        console.log(`[useCallDetection] SMS sent successfully to ${number}`);
+        await addCallLogEntry({ number, state: 'ringing', status: 'sent', trigger: 'roaming' });
         Alert.alert('✅ SMS Sent', `Auto-reply sent to ${number}`);
       } else if (result.method === 'skipped') {
+        console.log(`[useCallDetection] SMS skipped (dedupe) for ${number}`);
+        await addCallLogEntry({ number, state: 'ringing', status: 'skipped', trigger: 'roaming' });
         Alert.alert('⏭ Skipped', `Already sent to ${number} within 5 mins`);
       } else {
-        Alert.alert('❌ SMS Failed', result.error ?? 'Unknown error');
+        // SMS failed — enqueue for later delivery
+        console.log(`[useCallDetection] SMS failed for ${number}, enqueueing: ${result.error}`);
+        await enqueueSMS(number, settings.message, settings.templateName);
+        await addCallLogEntry({ number, state: 'ringing', status: 'queued', trigger: 'roaming', error: result.error });
+        Alert.alert('❌ SMS Queued', `Will send to ${number} when online`);
       }
       onCallEvent?.({ number, state: 'ringing', trigger: 'roaming' });
     } else {
+      console.log(`[useCallDetection] Conditions not met for ${number}: roaming=${net.isRoaming}, mode=${mode}`);
+      await addCallLogEntry({ number, state: 'ringing', status: 'failed', trigger: `mode=${mode}`, error: 'Conditions not met' });
       Alert.alert('⏭ No SMS', `Conditions not met\nRoaming: ${net.isRoaming} | Mode: ${mode}`);
     }
   }, [onCallEvent]);
@@ -114,10 +138,16 @@ export function useCallDetection(onCallEvent?: (event: CallEvent) => void) {
   }, [handleRingingCall, handleMissedCall]);
 
   // App state listener — re-check network when app comes to foreground
+  // and drain any queued SMS messages
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+    const sub = AppState.addEventListener('change', async (next: AppStateStatus) => {
       if (next === 'active' && appState.current !== 'active') {
-        // App foregrounded — refresh network status
+        // App foregrounded — drain SMS queue and refresh network status
+        console.log('[useCallDetection] App foregrounded — draining SMS queue');
+        const sentCount = await drainSMSQueue();
+        if (sentCount > 0) {
+          Alert.alert('📤 SMS Queue Drained', `${sentCount} queued message(s) sent`);
+        }
       }
       appState.current = next;
     });
